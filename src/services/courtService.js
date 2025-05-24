@@ -3,33 +3,52 @@ import { courts, FETCH_TIMEOUT } from '../config/constants.js';
 import { allCourtsData, userTimePreferences } from '../store/userState.js';
 import { timeStringToMinutes, mergeConsecutiveSlots, filterSlotsByTimePreference } from './timeService.js';
 
-export const fetchData = async (courtId, year) => {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
-  try {
-    const response = await fetch('https://booking.alexclub.ru/wp-admin/admin-ajax.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-      body: new URLSearchParams({
-        action: 'dopbsp_calendar_schedule_get',
-        dopbsp_frontend_ajax_request: 'true',
-        id: courtId,
-        year: year,
-        firstYear: 'false'
-      }),
-      signal: controller.signal
-    });
+export const fetchData = async (courtId, year, retries = 3) => {
+  for (let attempt = 0; attempt < retries; attempt++) {
 
-    clearTimeout(timeoutId);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    return await response.json();
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      console.error(`Request timeout for court ${courtId}`);
+    try {
+      const response = await fetch('https://booking.alexclub.ru/wp-admin/admin-ajax.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: new URLSearchParams({
+          action: 'dopbsp_calendar_schedule_get',
+          dopbsp_frontend_ajax_request: 'true',
+          id: courtId,
+          year: year,
+          firstYear: 'false'
+        }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      const isLastAttempt = attempt === retries - 1;
+
+      if (error.name === 'AbortError') {
+        console.error(`Таймаут запроса для корта ${courtId}${isLastAttempt ? '' : ', повторная попытка...'}`);
+      } else {
+        console.error(`Ошибка при запросе данных для корта ${courtId}: ${error.message}${isLastAttempt ? '' : ', повторная попытка...'}`);
+      }
+
+      if (isLastAttempt) {
+        return null;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    throw error;
   }
 };
 

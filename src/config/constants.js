@@ -13,6 +13,7 @@ export const FETCH_TIMEOUT = 5000;
 
 export const commands = {
   start: "Привет",
+  calendar: "Календарь",
+  notifications: "Уведомления",
   help: "Помощь",
-  calendar: "Календарь"
 };

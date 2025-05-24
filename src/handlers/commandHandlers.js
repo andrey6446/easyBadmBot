@@ -2,14 +2,8 @@ import { InlineKeyboard } from 'grammy';
 import { userCalendarState } from '../store/userState.js'
 
 export const setupCommandHandlers = (bot) => {
-  bot.command('start', async (ctx) => {
-    await ctx.reply('Привет! Я бот, который помогает посмотреть свободные для записи слоты на бадминтон в Алексеева.');
-  });
-
-  bot.command('help', async (ctx) => {
-    await ctx.reply('Помощи не ждите 😭 \n [Андрей](https://t.me/this_object)', {
-      parse_mode: 'MarkdownV2'
-    });
+  bot.command('start', (ctx) => {
+    ctx.reply('Привет 👋 \nЯ бот-помощник по бадминтону в Алексеева!');
   });
 
   bot.command("calendar", async (ctx) => {
@@ -29,4 +23,11 @@ export const setupCommandHandlers = (bot) => {
       { reply_markup: keyboard }
     );
   });
+
+  bot.command('help', async (ctx) => {
+    await ctx.reply('Помощи не ждите 😭 \n [Андрей](https://t.me/this_object)', {
+      parse_mode: 'MarkdownV2'
+    });
+  });
+
 };
