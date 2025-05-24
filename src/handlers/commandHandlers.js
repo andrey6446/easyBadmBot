@@ -1,5 +1,6 @@
 import { InlineKeyboard } from 'grammy';
 import { userCalendarState } from '../store/userState.js'
+import { generateNotificationsKeyboard } from '../services/notificationService.js';
 
 export const setupCommandHandlers = (bot) => {
   bot.command('start', (ctx) => {
@@ -20,6 +21,17 @@ export const setupCommandHandlers = (bot) => {
     await ctx.reply(
       'Выберите удобное время для начала игры:\n\n' +
       'Нажмите "Любое время" или "Указать время" для ввода конкретного временного промежутка',
+      { reply_markup: keyboard }
+    );
+  });
+
+  bot.command('notifications', async (ctx) => {
+    const telegramId = ctx.from.id;
+    const keyboard = await generateNotificationsKeyboard(telegramId);
+
+    await ctx.reply(
+      'Ваши уведомления о свободных кортах:\n\n' +
+      'Выберите существующее уведомление для его удаления или добавьте новое.',
       { reply_markup: keyboard }
     );
   });

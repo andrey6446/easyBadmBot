@@ -17,7 +17,12 @@ const notificationSchema = new mongoose.Schema({
     required: true
   }], // 0 - воскресенье, 1 - понедельник и т.д.
   isActive: { type: Boolean, default: true },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  lastSentData: {
+    timestamp: { type: Date },
+    slotsHash: { type: String },
+    slotsData: { type: Map, of: String, default: {} }
+  }
 });
 
 export const Notification = mongoose.model('Notification', notificationSchema);

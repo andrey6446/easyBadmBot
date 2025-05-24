@@ -3,8 +3,8 @@ import { userTimePreferences, userAwaitingTimeInput, userCalendarState, userErro
 import { generateCalendar } from './calendarService.js';
 import { generateCourtsKeyboard } from './courtService.js';
 import { filterSlotsByTimePreference } from './timeService.js';
-import { clearErrorMessages } from '../utils/keyboardUtils.js'
-import { courts } from '../config/constants.js';
+import { clearErrorMessages, safeEditMessageText, safeEditMessageReplyMarkup } from '../utils/keyboardUtils.js'
+import { courts, getCourtLink } from '../config/constants.js';
 
 async function handleTimeSelection(data, ctx) {
   const userId = ctx.from.id;
@@ -20,11 +20,11 @@ async function handleTimeSelection(data, ctx) {
     userCalendarState.set(userId, state);
 
     const keyboard = await generateCalendar(state.year, state.month, userId);
-    await ctx.editMessageText('Выберите дату:',
+    await safeEditMessageText(ctx, 'Выберите дату:',
       { parse_mode: "MarkdownV2", reply_markup: keyboard });
   } else if (data === "time_custom") {
     userAwaitingTimeInput.set(userId, true);
-    await ctx.editMessageText(
+    await safeEditMessageText(ctx,
       'Введите желаемый временной промежуток в формате ЧЧ:ММ-ЧЧ:ММ\n' +
       'Например: 10:00-21:00\n\n' +
       'Доступное время: с 07:00 до 23:00'
@@ -50,7 +50,7 @@ async function handleMonthNavigation(data, ctx) {
   });
   const keyboard = await generateCalendar(parseInt(year), parseInt(month), userId);
 
-  await ctx.editMessageReplyMarkup({ reply_markup: keyboard });
+  await safeEditMessageReplyMarkup(ctx, { reply_markup: keyboard });
   await ctx.answerCallbackQuery();
 }
 
@@ -59,7 +59,7 @@ async function handleDaySelection(data, ctx) {
   const selectedDate = parts.slice(2).join('-');
   const keyboard = await generateCourtsKeyboard(selectedDate, ctx);
 
-  await ctx.editMessageText(
+  await safeEditMessageText(ctx,
     `🏸 Выберите корт на ${selectedDate}:`,
     { reply_markup: keyboard }
   );
@@ -87,9 +87,9 @@ async function handleCourtSelection(data, ctx) {
 
   const backKeyboard = new InlineKeyboard().text('« Назад к кортам', `back_to_courts_${date}`);
 
-  await ctx.editMessageText(
-    `🗓 Свободные слоты на корте ${courtNum} (${date}):\n${slots.join('\n')}`,
-    { reply_markup: backKeyboard }
+  await safeEditMessageText(ctx,
+    `🗓 Свободные слоты на корте ${courtNum} (${date}):\n${slots.join('\n')}\n\n💻 ${getCourtLink(courtNum)}`,
+    { reply_markup: backKeyboard, parse_mode: "HTML" }
   );
   await ctx.answerCallbackQuery();
 }
@@ -104,13 +104,13 @@ async function handleSelectAllCourts(data, ctx) {
     slots = filterSlotsByTimePreference(slots, timePreference);
 
     if (slots.length > 0) {
-      message += `\n🏸 Корт ${courtNum}:\n${slots.join('\n')}\n`;
+      message += `\n🏸 Корт ${courtNum} ${getCourtLink(courtNum)}:\n${slots.join('\n')}\n`;
     }
   });
 
   const backKeyboard = new InlineKeyboard().text('« Назад к кортам', `back_to_courts_${date}`);
 
-  await ctx.editMessageText(message, { reply_markup: backKeyboard });
+  await safeEditMessageText(ctx, message, { reply_markup: backKeyboard, parse_mode: "HTML" });
   await ctx.answerCallbackQuery();
 }
 
@@ -123,7 +123,7 @@ async function handleMenuBack(ctx) {
   };
   const keyboard = await generateCalendar(state.year, state.month, userId);
 
-  await ctx.editMessageText("📆 Выберите дату для записи:",
+  await safeEditMessageText(ctx, "📆 Выберите дату для записи:",
     { parse_mode: "MarkdownV2", reply_markup: keyboard });
   await ctx.answerCallbackQuery();
 }
@@ -134,7 +134,7 @@ async function handleBackToCourts(data, ctx) {
   const selectedDate = data.split('_')[3];
   const keyboard = await generateCourtsKeyboard(selectedDate, ctx);
 
-  await ctx.editMessageText(`🏸 Выберите корт на ${selectedDate}:`, { reply_markup: keyboard });
+  await safeEditMessageText(ctx, `🏸 Выберите корт на ${selectedDate}:`, { reply_markup: keyboard });
   await ctx.answerCallbackQuery();
 }
 
@@ -143,7 +143,7 @@ async function handleBackToTime(ctx) {
     .row({ text: "Любое время", callback_data: "time_any" })
     .row({ text: "Указать время", callback_data: "time_custom" });
 
-  await ctx.editMessageText(
+  await safeEditMessageText(ctx,
     'Выберите удобное время для начала игры:\n\n' +
     'Нажмите "Любое время" или "Указать время" для ввода конкретного временного промежутка (в который вы бы хотели начать игру)',
     { reply_markup: keyboard }

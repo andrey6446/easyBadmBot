@@ -32,3 +32,22 @@ export const clearErrorMessages = async (ctx) => {
 
   userErrorMessages.set(userId, []);
 };
+export const safeEditMessageText = async (ctx, text, options = {}) => {
+  try {
+    await ctx.editMessageText(text, options);
+  } catch (error) {
+    if (!error.description || !error.description.includes('message is not modified')) {
+      throw error;
+    }
+  }
+};
+
+export const safeEditMessageReplyMarkup = async (ctx, options = {}) => {
+  try {
+    await ctx.editMessageReplyMarkup(options);
+  } catch (error) {
+    if (!error.description || !error.description.includes('message is not modified')) {
+      throw error;
+    }
+  }
+};
