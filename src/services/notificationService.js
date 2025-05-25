@@ -17,7 +17,7 @@ export const getUserNotifications = async (telegramId) => {
   }
 };
 
-export const createNotification = async (telegramId, timeRange, weekdays) => {
+export const createNotification = async (telegramId, timeRange, weekdays, userData = {}) => {
   try {
     const user = await User.findOne({ telegramId });
 
@@ -25,13 +25,16 @@ export const createNotification = async (telegramId, timeRange, weekdays) => {
       const newUser = new User({
         telegramId,
         chatId: telegramId,
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        username: userData.username || '',
         createdAt: new Date()
       });
       await newUser.save();
     }
 
     const notification = new Notification({
-      userId: user?._id,
+      userId: user._id,
       telegramId,
       timeRange,
       weekdays,
@@ -233,33 +236,50 @@ export const checkAvailableCourts = async (bot) => {
       }
 
       const prevSlotsData = notification.lastSentData?.slotsData || {};
-
-      const changedDates = [];
+      
+      // Новые слоты, которые появились с последней проверки
+      const newlyAvailableDates = [];
+      
       for (const dateStr of Object.keys(availableSlots)) {
-        const currentDateSlots = JSON.stringify(availableSlots[dateStr]);
-        const prevDateSlots = prevSlotsData[dateStr] ? prevSlotsData[dateStr] : null;
-
-        if (!prevDateSlots || currentDateSlots !== prevDateSlots) {
-          changedDates.push(dateStr);
+        const currentDateSlots = JSON.parse(JSON.stringify(availableSlots[dateStr]));
+        const prevDateSlots = prevSlotsData[dateStr] ? JSON.parse(prevSlotsData[dateStr]) : {};
+        
+        let hasNewSlots = false;
+        
+        // Проверяем каждый корт на наличие новых слотов
+        for (const [courtNum, slots] of Object.entries(currentDateSlots)) {
+          const prevSlots = prevDateSlots[courtNum] || [];
+          
+          // Проверяем, есть ли новые слоты, которых не было раньше
+          const newSlots = slots.filter(slot => !prevSlots.includes(slot));
+          
+          if (newSlots.length > 0) {
+            hasNewSlots = true;
+            break;
+          }
+        }
+        
+        if (hasNewSlots) {
+          newlyAvailableDates.push(dateStr);
         }
       }
 
-      if (changedDates.length > 0) {
+      if (newlyAvailableDates.length > 0) {
         const user = await User.findById(notification.userId);
 
         if (!user) {
           continue;
         }
 
-        const userName = user.firstName + ' ' + user.lastName || 'пользователь';
+        const userName = user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Пользователь';
 
         try {
           await bot.api.sendMessage(
             user.chatId,
-            `Привет, ${userName}! Найдены изменения в расписании кортов согласно вашим предпочтениям:`
+            `Привет, ${userName}! Появились новые свободные слоты согласно вашим предпочтениям:`
           );
 
-          const sortedDates = changedDates.sort();
+          const sortedDates = newlyAvailableDates.sort();
 
           const newSlotsData = {};
 
@@ -271,16 +291,27 @@ export const checkAvailableCourts = async (bot) => {
             const weekdayName = weekdaysFull[date.getDay()];
             const dateFormatted = `${date.getDate()} ${getMonthName(date.getMonth())}`;
 
-            let dateMessage = `🗓 ${weekdayName}, ${dateFormatted} (изменения в расписании):\n`;
+            let dateMessage = `🗓 ${weekdayName}, ${dateFormatted} (новые свободные слоты):\n`;
 
             for (const [courtNum, slots] of Object.entries(availableSlots[dateStr])) {
-              dateMessage += `\n🏸 Корт ${courtNum} ${getCourtLink(courtNum)}:\n${slots.join('\n')}\n`;
+              // Только новые слоты для этого корта
+              const prevSlots = prevSlotsData[dateStr] ? 
+                JSON.parse(prevSlotsData[dateStr])[courtNum] || [] : [];
+              const newSlots = slots.filter(slot => !prevSlots.includes(slot));
+              
+              if (newSlots.length > 0) {
+                dateMessage += `\n🏸 Корт ${courtNum} ${getCourtLink(courtNum)}:\n${newSlots.join('\n')}\n`;
+              }
             }
 
             await bot.api.sendMessage(user.chatId, dateMessage, { parse_mode: "HTML" });
           }
 
-          const updatedSlotsData = { ...prevSlotsData, ...newSlotsData };
+          // Обновляем все доступные слоты в базе данных
+          const updatedSlotsData = { ...prevSlotsData };
+          for (const dateStr of Object.keys(availableSlots)) {
+            updatedSlotsData[dateStr] = JSON.stringify(availableSlots[dateStr]);
+          }
 
           await Notification.updateOne(
             { _id: notification._id },
@@ -297,6 +328,25 @@ export const checkAvailableCourts = async (bot) => {
         } catch (error) {
           console.error(`Ошибка при отправке уведомления: ${error.message}`);
         }
+      } else {
+        // Обновляем данные о всех доступных слотах, даже если нет новых
+        const updatedSlotsData = { ...prevSlotsData };
+        for (const dateStr of Object.keys(availableSlots)) {
+          updatedSlotsData[dateStr] = JSON.stringify(availableSlots[dateStr]);
+        }
+        
+        await Notification.updateOne(
+          { _id: notification._id },
+          {
+            $set: {
+              lastSentData: {
+                timestamp: new Date(),
+                slotsData: updatedSlotsData,
+                slotsHash: crypto.createHash('md5').update(JSON.stringify(updatedSlotsData)).digest('hex')
+              }
+            }
+          }
+        );
       }
     }
   } catch (error) {

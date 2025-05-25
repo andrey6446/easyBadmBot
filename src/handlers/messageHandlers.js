@@ -98,7 +98,12 @@ export const setupMessageHandlers = (bot) => {
         const notification = await createNotification(
           userId,
           state.timeRange,
-          state.weekdays
+          state.weekdays,
+          {
+            firstName: ctx.from.first_name,
+            lastName: ctx.from.last_name,
+            username: ctx.from.username
+          }
         );
 
         await ctx.reply('✅ Уведомление успешно создано!');

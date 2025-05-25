@@ -106,7 +106,14 @@ export async function handleWeekdaysDone(ctx) {
   }
 
   try {
-    await createNotification(userId, state.timeRange, state.weekdays);
+    await createNotification(
+      userId, state.timeRange, state.weekdays,
+      {
+        firstName: ctx.from.first_name,
+        lastName: ctx.from.last_name,
+        username: ctx.from.username
+      }
+    );
 
     const keyboard = await generateNotificationsKeyboard(userId);
     await safeEditMessageText(ctx,
