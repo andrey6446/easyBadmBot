@@ -236,7 +236,9 @@ export const checkAvailableCourts = async (bot) => {
         }
       }
 
-      const prevSlotsData = notification.lastSentData?.slotsData || {};
+      const prevSlotsData = notification.lastSentData?.slotsData
+        ? Object.fromEntries(notification.lastSentData.slotsData)
+        : {};
 
       // Новые слоты, которые появились с последней проверки
       const newlyAvailableDates = [];
@@ -320,7 +322,7 @@ export const checkAvailableCourts = async (bot) => {
               $set: {
                 lastSentData: {
                   timestamp: new Date(),
-                  slotsData: updatedSlotsData,
+                  slotsData: new Map(Object.entries(updatedSlotsData)), // Используем Map в обоих случаях
                   slotsHash: crypto.createHash('md5').update(JSON.stringify(updatedSlotsData)).digest('hex')
                 }
               }

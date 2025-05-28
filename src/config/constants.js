@@ -19,7 +19,7 @@ export const commands = {
 };
 
 export const weekdayNames = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'];
-export const weekdaysFull = ['воскресенье', 'понедельник', 'вторник', 'среду', 'четверг', 'пятницу', 'субботу'];
+export const weekdaysFull = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
 
 export const getCourtLink = (courtNum) => `<a href="https://booking.alexclub.ru/product/badmintonnyj-kort-${courtNum}/">Забронировать</a>`;
 
