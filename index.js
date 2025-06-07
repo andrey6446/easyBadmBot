@@ -12,7 +12,7 @@ setupCommandHandlers(bot);
 setupCallbackHandlers(bot);
 setupMessageHandlers(bot);
 
-cron.schedule('*/1 * * * *', () => {
+cron.schedule('*/15 * * * *', () => {
   checkAvailableCourts(bot);
 });
 

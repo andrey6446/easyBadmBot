@@ -3,6 +3,8 @@ import { courts, FETCH_TIMEOUT } from '../config/constants.js';
 import { allCourtsData, userTimePreferences } from '../store/userState.js';
 import { timeStringToMinutes, mergeConsecutiveSlots, filterSlotsByTimePreference } from './timeService.js';
 
+const courtDataCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 минут
 
 export const fetchData = async (courtId, year, retries = 3) => {
   for (let attempt = 0; attempt < retries; attempt++) {
@@ -53,6 +55,13 @@ export const fetchData = async (courtId, year, retries = 3) => {
 };
 
 export const getAllCourtsData = async (year) => {
+  const cacheKey = `courts_${year}`;
+  const cached = courtDataCache.get(cacheKey);
+
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+
   try {
     const fetchPromises = Object.entries(courts).map(async ([courtNum, courtId]) => {
       const courtData = await fetchData(courtId, year);
@@ -61,11 +70,17 @@ export const getAllCourtsData = async (year) => {
 
     const results = await Promise.all(fetchPromises);
     const data = Object.fromEntries(results);
+
+    courtDataCache.set(cacheKey, {
+      data,
+      timestamp: Date.now()
+    });
+
     Object.assign(allCourtsData, data);
     return data;
   } catch (error) {
     console.error('Error fetching courts data:', error);
-    return allCourtsData;
+    return cached?.data || allCourtsData;
   }
 };
 
